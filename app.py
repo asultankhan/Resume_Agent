@@ -1,5 +1,6 @@
 import streamlit as st
 from pypdf import PdfReader
+from docx import Document
 from groq import Groq
 import re
 
@@ -16,6 +17,30 @@ client = Groq(
 )
 
 def extract_resume_text(uploaded_file):
+
+    text = ""
+
+    if uploaded_file.name.endswith(".pdf"):
+
+        reader = PdfReader(uploaded_file)
+
+        for page in reader.pages:
+            page_text = page.extract_text()
+
+            if page_text:
+                text += page_text + "\n"
+
+
+    elif uploaded_file.name.endswith(".docx"):
+
+        doc = Document(uploaded_file)
+
+        for paragraph in doc.paragraphs:
+            text += paragraph.text + "\n"
+
+    text = re.sub(r"\s+", " ", text)
+
+    return text
     reader = PdfReader(uploaded_file)
     text = ""
 
@@ -31,6 +56,20 @@ def extract_resume_text(uploaded_file):
 def analyze_resume(resume_text, job_description):
 
     prompt = f"""
+
+You are a professional ATS resume reviewer.
+
+Target Position:
+{job_title}
+
+Analyze the resume against the job requirements.
+
+Important:
+- Never invent candidate information.
+- Do not create fake achievements, numbers, certifications, or experience.
+- Separate existing information from suggestions.
+- Any example improvement must be labelled as "Example only".
+
 You are a senior ATS resume reviewer.
 
 Analyze the resume against the job description.
@@ -77,6 +116,11 @@ uploaded_resume = st.file_uploader(
     type=["pdf"]
 )
 
+job_title = st.text_input(
+    "Target Job Title"
+)
+
+
 job_description = st.text_area(
     "Paste Job Description"
 )
@@ -95,7 +139,32 @@ if st.button("Analyze Resume"):
             )
 
             st.subheader("Resume Analysis Report")
+            st.subheader("Resume Analysis Report")
+
+st.info(
+"""
+⚠️ AI-generated suggestions should be verified by the candidate.
+
+Please add only information that accurately represents your actual
+experience, skills, achievements, and qualifications.
+"""
+)
+
+st.markdown(result)
+
+st.download_button(
+    label="Download ATS Report",
+    data=result,
+    file_name="ATS_Resume_Report.txt",
+    mime="text/plain"
+)
             st.markdown(result)
+            st.download_button(
+    label="Download ATS Report",
+    data=result,
+    file_name="ATS_Resume_Report.txt",
+    mime="text/plain"
+)
 
     else:
         st.warning("Please upload resume and enter job description.")
